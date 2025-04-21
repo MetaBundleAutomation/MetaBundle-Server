@@ -133,10 +133,39 @@ The auto-update command will:
 
 This repository provides the following global services:
 
-- **Redis**: Shared caching and message queue (port 6379)
-- **Celery Worker**: Background task processing
-- **Celery Beat**: Scheduled task management
-- **Flower**: Celery monitoring interface (port 5555)
+- **Redis**: Message broker and cache for distributed services.
+- **Celery**: Background task processing (worker and beat for scheduled tasks) using Redis as the broker.
+- **Flower**: Web UI for monitoring Celery tasks (http://localhost:5555).
+- **Nginx**: Reverse proxy and static file serving.
+
+### Using Celery
+
+- **Celery code is located at:** `services/celery/`
+- **Add tasks to:** `services/celery/tasks.py`
+- **Dependencies:** `services/celery/requirements.txt`
+
+#### Build and Start All Services
+```sh
+docker-compose up --build
+```
+
+#### Monitor Tasks
+- Visit [http://localhost:5555](http://localhost:5555) for the Flower dashboard.
+
+#### Example: Add a Celery Task
+Edit `services/celery/tasks.py`:
+```python
+@app.task
+def my_task():
+    print("Hello from Celery!")
+```
+
+#### Call a Task from Python (inside container or with Redis running)
+```python
+from tasks import add
+result = add.delay(2, 3)
+print(result.get())  # Should print 5
+```
 
 ## Scraper Architecture
 

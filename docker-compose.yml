@@ -19,37 +19,39 @@ services:
 
   # Celery worker for background task processing
   celery-worker:
-    image: python:3.11-slim
+    build:
+      context: ./services/celery
     volumes:
-      - ./Infrastructure:/app
+      - ./services/celery:/app
     working_dir: /app
     command: >
-      bash -c "pip install -r requirements.txt &&
-              celery -A tasks worker --loglevel=info"
+      celery -A tasks worker --loglevel=info
     depends_on:
       - redis
     environment:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - CELERY_BROKER_URL=redis://redis:6379/0
     networks:
       - metabundle-network
     restart: unless-stopped
 
   # Celery beat for scheduled tasks
   celery-beat:
-    image: python:3.11-slim
+    build:
+      context: ./services/celery
     volumes:
-      - ./Infrastructure:/app
+      - ./services/celery:/app
     working_dir: /app
     command: >
-      bash -c "pip install -r requirements.txt &&
-              celery -A tasks beat --loglevel=info"
+      celery -A tasks beat --loglevel=info
     depends_on:
       - redis
       - celery-worker
     environment:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - CELERY_BROKER_URL=redis://redis:6379/0
     networks:
       - metabundle-network
     restart: unless-stopped

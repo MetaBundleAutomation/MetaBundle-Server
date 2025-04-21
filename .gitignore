@@ -6,6 +6,8 @@
 !/projects/DataProcessor/
 !/projects/Scraper/
 /services/*
+!services/celery/
+!services/celery/**
 !/services/nginx/
 
 # Common environment files
