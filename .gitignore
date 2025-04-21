@@ -1,9 +1,12 @@
-# Ignore directories with their own repositories
+# Ignore directories with their own repositories but allow submodules
 /projects/*
-# But don't ignore project management scripts
-!/projects/README.md
-!/projects/*.ps1
-!/projects/*.sh
+!/.gitmodules
+!/projects/Bloomberg-Terminal/
+!/projects/Dashboard/
+!/projects/DataProcessor/
+!/projects/Scraper/
+/services/*
+!/services/nginx/
 
 # Common environment files
 .env
