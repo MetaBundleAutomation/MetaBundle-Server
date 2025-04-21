@@ -23,9 +23,11 @@ services:
       context: ./services/celery
     volumes:
       - ./services/celery:/app
+      - ${SHARED_TASKS}:/app/shared-tasks
+      - ./projects/Scraper:/app/projects/Scraper
     working_dir: /app
     command: >
-      celery -A tasks worker --loglevel=info
+      python worker.py worker --loglevel=info
     depends_on:
       - redis
     environment:
@@ -42,9 +44,11 @@ services:
       context: ./services/celery
     volumes:
       - ./services/celery:/app
+      - ${SHARED_TASKS}:/app/shared-tasks
+      - ./projects/Scraper:/app/projects/Scraper
     working_dir: /app
     command: >
-      celery -A tasks beat --loglevel=info
+      python worker.py beat --loglevel=info
     depends_on:
       - redis
       - celery-worker
