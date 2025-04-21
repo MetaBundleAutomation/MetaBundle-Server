@@ -1,0 +1,12 @@
+[submodule "projects/Scraper"]
+	path = projects/Scraper
+	url = https://github.com/MetaBundleAutomation/Scraper-Setup
+	branch = master
+[submodule "projects/Bloomberg-Terminal"]
+	path = projects/Bloomberg-Terminal
+	url = https://github.com/MetaBundleAutomation/Bloomberg-Terminal
+	branch = main
+[submodule "projects/Dashboard"]
+	path = projects/Dashboard
+	url = https://github.com/MetaBundleAutomation/Dashboard
+	branch = main

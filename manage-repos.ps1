@@ -1,7 +1,7 @@
 # MetaBundle Repository Management Script
 param(
     [Parameter(Mandatory=$false)]
-    [ValidateSet("add", "update", "init", "status", "list", "remove")]
+    [ValidateSet("add", "update", "auto-update", "init", "status", "list", "remove")]
     [string]$Action = "status",
     
     [Parameter(Mandatory=$false)]
@@ -368,6 +368,60 @@ switch ($Action) {
             }
         } else {
             Write-Host "Please specify a repository name or use -All" -ForegroundColor Yellow
+        }
+    }
+    
+    "auto-update" {
+        # Update all submodules to latest commits
+        Write-Host "Auto-updating all submodules to their latest versions..." -ForegroundColor Cyan
+        
+        $updated = $false
+        foreach ($repo in $repos) {
+            $repoPath = Get-RepoDirectory -Repository $repo
+            $submodulePath = Get-SubmodulePath -Repository $repo
+            
+            if (Test-Path $repoPath) {
+                Write-Host "Updating $($repo.Name) to latest version..." -ForegroundColor Cyan
+                
+                # Check if it's a submodule
+                $gitModules = Get-Content -Path ".gitmodules" -ErrorAction SilentlyContinue
+                if ($gitModules -match $submodulePath) {
+                    # Pull latest changes in the submodule
+                    Push-Location $repoPath
+                    try {
+                        git checkout $repo.Branch
+                        git pull
+                        if ($LASTEXITCODE -eq 0) {
+                            $updated = $true
+                            Write-Host "Updated $($repo.Name) to latest version" -ForegroundColor Green
+                        }
+                    } finally {
+                        Pop-Location
+                    }
+                    
+                    # Stage the submodule update in the root repository
+                    git add $submodulePath
+                }
+            }
+        }
+        
+        # Commit the changes if any updates were made
+        if ($updated) {
+            git commit -m "Auto-update submodules to latest versions"
+            Write-Host "Committed submodule updates to the root repository" -ForegroundColor Green
+            
+            # Optionally push the changes
+            $pushChoice = Read-Host "Push updates to GitHub? (Y/n)"
+            if ($pushChoice -ne "n" -and $pushChoice -ne "N") {
+                git push
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Host "Pushed submodule updates to GitHub" -ForegroundColor Green
+                } else {
+                    Write-Host "Failed to push updates to GitHub" -ForegroundColor Red
+                }
+            }
+        } else {
+            Write-Host "No updates were made to any submodules" -ForegroundColor Yellow
         }
     }
     

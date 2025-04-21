@@ -9,7 +9,7 @@ This repository serves as the infrastructure hub for all MetaBundle services and
 The MetaBundle system is organized into two main categories:
 
 ### Project Repositories
-All application repositories are organized in the `./projects` directory:
+All application repositories are organized in the `./projects` directory as Git submodules:
 
 | Repository | Description | Location | Repository URL |
 |------------|-------------|----------|---------------|
@@ -19,7 +19,7 @@ All application repositories are organized in the `./projects` directory:
 | Scraper | Web scraping and data collection services | [./projects/Scraper](./projects/Scraper) | https://github.com/MetaBundleAutomation/Scraper-Setup |
 
 ### Infrastructure Services
-Shared infrastructure services are organized in the `./services` directory:
+Shared infrastructure services are organized in the `./services` directory as Git submodules:
 
 | Service | Description | Location | Repository URL |
 |---------|-------------|----------|---------------|
@@ -29,10 +29,18 @@ Shared infrastructure services are organized in the `./services` directory:
 
 ### Quick Start
 
-1. Clone this repository:
+1. Clone this repository with its submodules:
+   ```bash
+   git clone --recurse-submodules https://github.com/MetaBundleAutomation/MetaBundle-Server.git
+   cd MetaBundle-Server
+   ```
+   
+   Alternatively, you can clone first and then initialize submodules:
    ```bash
    git clone https://github.com/MetaBundleAutomation/MetaBundle-Server.git
    cd MetaBundle-Server
+   git submodule init
+   git submodule update
    ```
 
 2. Use the MetaBundle CLI tool for setup:
@@ -60,27 +68,66 @@ The `metabundle-cli.ps1` script provides a streamlined interface for managing th
 | `start` | Start services | `.\metabundle-cli.ps1 start all` |
 | `stop` | Stop services | `.\metabundle-cli.ps1 stop all` |
 | `status` | Check service status | `.\metabundle-cli.ps1 status services` |
-| `repo` | Manage repositories | `.\metabundle-cli.ps1 repo clone --all` |
+| `repo` | Manage repositories | `.\metabundle-cli.ps1 repo add --all` |
 | `env` | Manage environment variables | `.\metabundle-cli.ps1 env edit` |
 | `update` | Update all components | `.\metabundle-cli.ps1 update` |
 | `help` | Show help information | `.\metabundle-cli.ps1 help` |
 
 For a complete list of commands and options, run `.\metabundle-cli.ps1 help`.
 
-### Repository Management
+### Git Submodule Management
 
-The `manage-repos.ps1` script provides direct management of project and service repositories:
+The `manage-repos.ps1` script handles the Git submodules for project and service repositories:
 
 ```powershell
 # List repositories
 .\manage-repos.ps1 -Action list
 
-# Clone repositories
-.\manage-repos.ps1 -Action clone -All
+# Add repositories as submodules
+.\manage-repos.ps1 -Action add -All
 
-# Update repositories
+# Initialize submodules
+.\manage-repos.ps1 -Action init
+
+# Update submodules
 .\manage-repos.ps1 -Action update -RepoName Dashboard
+
+# Remove a submodule
+.\manage-repos.ps1 -Action remove -RepoName nginx
 ```
+
+## Repository Management
+
+MetaBundle Server uses Git submodules to manage project repositories. This provides a modular structure while maintaining clear relationships between components.
+
+### Adding Repositories
+
+To add a project repository as a submodule:
+
+```powershell
+# Using the CLI tool
+./metabundle-cli.ps1 repo add <repository-name>
+
+# Or directly
+./manage-repos.ps1 -Action add -RepoName <repository-name>
+```
+
+### Updating Repositories
+
+To update repositories to specific versions:
+
+```powershell
+# Update a specific repository
+./metabundle-cli.ps1 repo update <repository-name>
+
+# Auto-update all repositories to their latest versions
+./metabundle-cli.ps1 repo auto-update
+```
+
+The auto-update command will:
+1. Pull the latest changes for each submodule from their default branches
+2. Stage and commit these updates in the root repository
+3. Optionally push the changes to GitHub
 
 ## Global Infrastructure
 

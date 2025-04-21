@@ -68,6 +68,7 @@ function Show-Help {
     Write-Host "    repo clone     - Clone repositories"
     Write-Host "    repo update    - Update repositories"
     Write-Host "    repo status    - Check repository status"
+    Write-Host "    repo auto-update - Auto-update repositories"
     
     Write-Host "`n  env" -ForegroundColor $colors.Success -NoNewline
     Write-Host " - Environment variable management"
@@ -299,7 +300,20 @@ function Manage-Repositories {
         }
     }
     
-    $command = ".\manage-repos.ps1 -Action $SubCommand $repoArgs"
+    # Map the CLI subcommands to manage-repos.ps1 actions
+    $repoAction = switch ($SubCommand) {
+        "list" { "list" }
+        "clone" { "add" }    # map "clone" to "add" for submodules
+        "add" { "add" }
+        "update" { "update" }
+        "status" { "status" }
+        "init" { "init" }
+        "remove" { "remove" }
+        "auto-update" { "auto-update" } # Add auto-update option
+        default { $SubCommand }
+    }
+    
+    $command = ".\manage-repos.ps1 -Action $repoAction $repoArgs"
     Write-Host "Executing: $command" -ForegroundColor $colors.Info
     Invoke-Expression $command
 }
