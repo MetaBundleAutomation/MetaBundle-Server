@@ -1,33 +1,77 @@
 version: '3.8'
 
 services:
-  llm-service:
-    image: deepseek/deepseek-coder:1.0
+  # Global Redis service for caching, message queuing, etc.
+  redis:
+    image: redis:7-alpine
     ports:
-      - "8080:8080"
+      - "6379:6379"
     volumes:
-      - ./models:/app/models
+      - redis-data:/data
+    restart: unless-stopped
+    networks:
+      - metabundle-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Celery worker for background task processing
+  celery-worker:
+    image: python:3.11-slim
+    volumes:
+      - ./Infrastructure:/app
+    working_dir: /app
+    command: >
+      bash -c "pip install -r requirements.txt &&
+              celery -A tasks worker --loglevel=info"
+    depends_on:
+      - redis
     environment:
-      - CUDA_VISIBLE_DEVICES=0
-      - MODEL_PATH=/app/models/deepseek-v1
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    networks:
+      - metabundle-network
     restart: unless-stopped
 
-  scraper-worker:
-    build:
-      context: .
-      dockerfile: Dockerfile
+  # Celery beat for scheduled tasks
+  celery-beat:
+    image: python:3.11-slim
     volumes:
-      - ./:/app
-    environment:
-      - PYTHONUNBUFFERED=1
+      - ./Infrastructure:/app
+    working_dir: /app
+    command: >
+      bash -c "pip install -r requirements.txt &&
+              celery -A tasks beat --loglevel=info"
     depends_on:
-      - llm-service
-    command: python src/main.py
+      - redis
+      - celery-worker
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    networks:
+      - metabundle-network
     restart: unless-stopped
+
+  # Flower for monitoring Celery
+  flower:
+    image: mher/flower:0.9.7
+    ports:
+      - "5555:5555"
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - FLOWER_PORT=5555
+    depends_on:
+      - redis
+      - celery-worker
+    networks:
+      - metabundle-network
+    restart: unless-stopped
+
+networks:
+  metabundle-network:
+    driver: bridge
+
+volumes:
+  redis-data:

@@ -1,242 +1,134 @@
-# DataProcessor
+# MetaBundle Server Infrastructure
 
-Real-time news scraping, summarization, and timeline event processing engine for financial data analysis.
+This repository serves as the infrastructure hub for all MetaBundle services and applications. It provides global configurations, shared services, and orchestration for the entire MetaBundle ecosystem.
 
-## Overview
+**Repository**: [https://github.com/MetaBundleAutomation/MetaBundle-Server](https://github.com/MetaBundleAutomation/MetaBundle-Server)
 
-DataProcessor fetches top search results via Google APIs, scrapes content from linked articles, summarizes them using a local LLM (e.g., DeepSeek V1), and returns structured metadata for stock timeline applications. Designed to run locally or server-side in Docker containers.
+## System Architecture
 
-## Quick Start
+The MetaBundle system is organized into two main categories:
 
-1. Clone the repository:
+### Project Repositories
+All application repositories are organized in the `./projects` directory:
+
+| Repository | Description | Location | Repository URL |
+|------------|-------------|----------|---------------|
+| Bloomberg-Terminal | Bloomberg data integration and terminal interface | [./projects/Bloomberg-Terminal](./projects/Bloomberg-Terminal) | https://github.com/MetaBundleAutomation/Bloomberg-Terminal |
+| Dashboard | Frontend UI for monitoring and control | [./projects/Dashboard](./projects/Dashboard) | https://github.com/MetaBundleAutomation/Dashboard |
+| DataProcessor | Data processing and transformation pipeline | [./projects/DataProcessor](./projects/DataProcessor) | https://github.com/MetaBundleAutomation/Data-Processor |
+| Scraper | Web scraping and data collection services | [./projects/Scraper](./projects/Scraper) | https://github.com/MetaBundleAutomation/Scraper-Setup |
+
+### Infrastructure Services
+Shared infrastructure services are organized in the `./services` directory:
+
+| Service | Description | Location | Repository URL |
+|---------|-------------|----------|---------------|
+| nginx | Web server and Cloudflare Tunnel configurations | [./services/nginx](./services/nginx) | https://github.com/MetaBundleAutomation/nginx-config |
+
+## Getting Started
+
+### Quick Start
+
+1. Clone this repository:
+   ```bash
+   git clone https://github.com/MetaBundleAutomation/MetaBundle-Server.git
+   cd MetaBundle-Server
    ```
-   git clone https://github.com/MetaBundleAutomation/Data-Processor.git
-   cd DataProcessor
-   ```
 
-2. Set up environment variables:
-   
-   Option A: Using PowerShell to set system-wide environment variables:
+2. Use the MetaBundle CLI tool for setup:
    ```powershell
-   # Set environment variables at the user level
-   [System.Environment]::SetEnvironmentVariable("GOOGLE_SEARCH_API_KEY", "your_api_key_here", "User")
-   [System.Environment]::SetEnvironmentVariable("GOOGLE_SEARCH_ENGINE_ID", "15cb95703c7e2469c", "User")
-   ```
-   
-   Option B: Using a local .env file:
-   ```
-   cp .env.example .env
-   # Edit .env with your API keys or let it use the system environment variables
+   .\metabundle-cli.ps1 setup all
    ```
 
-3. Run with Docker:
-   ```
-   docker-compose up -d
-   ```
-
-   Or locally:
-   ```
-   pip install -r requirements.txt
-   python src/main.py
+3. Start all services:
+   ```powershell
+   .\metabundle-cli.ps1 start all
    ```
 
-## Environment Variables
+4. Check service status:
+   ```powershell
+   .\metabundle-cli.ps1 status services
+   ```
 
-The application uses the following environment variables that can be set either through system environment variables or in the `.env` file:
+### MetaBundle CLI Tool
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| GOOGLE_SEARCH_API_KEY | Your Google API key for search | Required |
-| GOOGLE_SEARCH_ENGINE_ID | Your Google Custom Search Engine ID | Required |
-| LLM_HOST | Host for the LLM service | localhost |
-| LLM_PORT | Port for the LLM service | 8080 |
-| LLM_MODEL | Model name to use for summarization | deepseek-v1 |
-| LOG_LEVEL | Logging level | INFO |
-| MAX_CONCURRENT_SCRAPES | Maximum number of concurrent scrapes | 10 |
-| MAX_SEARCH_RESULTS | Maximum number of search results to process | 20 |
-| SUMMARY_MAX_LENGTH | Maximum length of article summaries | 200 |
+The `metabundle-cli.ps1` script provides a streamlined interface for managing the entire MetaBundle environment:
 
-## Features
+| Command | Description | Example |
+|---------|-------------|---------|
+| `setup` | Configure environment and dependencies | `.\metabundle-cli.ps1 setup all` |
+| `start` | Start services | `.\metabundle-cli.ps1 start all` |
+| `stop` | Stop services | `.\metabundle-cli.ps1 stop all` |
+| `status` | Check service status | `.\metabundle-cli.ps1 status services` |
+| `repo` | Manage repositories | `.\metabundle-cli.ps1 repo clone --all` |
+| `env` | Manage environment variables | `.\metabundle-cli.ps1 env edit` |
+| `update` | Update all components | `.\metabundle-cli.ps1 update` |
+| `help` | Show help information | `.\metabundle-cli.ps1 help` |
 
-- Real-time news scraping via Google Custom Search API
-- Asynchronous web scraping with retry logic and anti-detection measures
-- Article content extraction and cleaning
-- Article summarization with local LLM option
-- FastAPI endpoint for custom search requests with date ranges
-- Structured JSON output for easy integration
+For a complete list of commands and options, run `.\metabundle-cli.ps1 help`.
 
-## Setup
+### Repository Management
 
-### Environment Variables
-
-Create a `.env` file in the project root directory by copying the provided `.env.example`:
-
-```bash
-cp .env.example .env
-```
-
-Then edit the `.env` file to set the required environment variables:
-
-```
-GOOGLE_SEARCH_API_KEY=your_google_api_key
-GOOGLE_SEARCH_ENGINE_ID=your_google_search_engine_id
-MAX_CONCURRENT_SCRAPES=10
-MAX_SEARCH_RESULTS=20
-LOG_LEVEL=INFO
-```
-
-Alternatively, you can set these environment variables directly in your PowerShell session:
+The `manage-repos.ps1` script provides direct management of project and service repositories:
 
 ```powershell
-$env:GOOGLE_SEARCH_API_KEY="your_google_api_key"
-$env:GOOGLE_SEARCH_ENGINE_ID="your_google_search_engine_id"
-$env:MAX_CONCURRENT_SCRAPES="10"
-$env:MAX_SEARCH_RESULTS="20"
-$env:LOG_LEVEL="INFO"
+# List repositories
+.\manage-repos.ps1 -Action list
+
+# Clone repositories
+.\manage-repos.ps1 -Action clone -All
+
+# Update repositories
+.\manage-repos.ps1 -Action update -RepoName Dashboard
 ```
 
-### Google Search API Setup
+## Global Infrastructure
 
-1. Create a project in the [Google Cloud Console](https://console.cloud.google.com/)
-2. Enable the Custom Search API
-3. Create API credentials (API Key)
-4. Create a Custom Search Engine in the [Google Programmable Search Engine](https://programmablesearchengine.google.com/about/)
-5. Add the API key and Search Engine ID to your environment variables
+This repository provides the following global services:
 
-### Installation
+- **Redis**: Shared caching and message queue (port 6379)
+- **Celery Worker**: Background task processing
+- **Celery Beat**: Scheduled task management
+- **Flower**: Celery monitoring interface (port 5555)
 
-Install the required dependencies:
+## Scraper Architecture
 
-```bash
-pip install -r requirements.txt
-```
+The scraping system consists of:
 
-## Usage
+1. **Scraper-Manager**: FastAPI backend that receives frontend requests and spins up new scraper instances
+   - Exposes `/spawn` endpoint to launch new scraper containers
+   - Communicates with Docker to manage containers
 
-### Command Line Interface
+2. **Scraper-Instance**: Lightweight container that runs scrape tasks
+   - Simulates a scraping job
+   - Returns status messages and results
 
-Run the data processor from the command line:
+3. **Scraper-Dashboard**: React + TypeScript frontend
+   - Provides "Spawn Scraper" button to trigger backend
+   - Displays container messages and logs
 
-```bash
-python src/main.py
-```
+## Development Workflow
 
-This will:
-1. Search for news articles related to the specified stock tickers
-2. Scrape and extract content from the found articles
-3. Save the article data to JSON files in the `output` directory
+1. **Local Development**: Use the CLI tool to start services and manage repositories
+   ```powershell
+   .\metabundle-cli.ps1 start all
+   ```
 
-### API Server
+2. **Updating Environment**: Edit environment variables as needed
+   ```powershell
+   .\metabundle-cli.ps1 env edit
+   ```
 
-Start the FastAPI server:
+3. **Adding New Services**: Update the `docker-compose.yml` file to add new services
 
-```bash
-python run_api.py
-```
+## Troubleshooting
 
-By default, the server runs on `http://localhost:8000`. You can access the API documentation at `http://localhost:8000/docs`.
+- **Port Conflicts**: Check for port availability
+  ```powershell
+  .\metabundle-cli.ps1 status ports
+  ```
 
-#### API Endpoints
-
-**Search Endpoint**
-
-```
-POST /search
-```
-
-Request body:
-```json
-{
-  "search_term": "climate change",
-  "from_date": "2025-03-01",
-  "to_date": "2025-04-01",
-  "max_results": 10
-}
-```
-
-This will:
-1. Search for articles matching the search term in the specified date range
-2. Scrape and extract content from the found articles
-3. Return structured article data in the response
-4. Save the article data to JSON files in the `output/searches` directory
-
-## Architecture
-
-```plaintext
-DataProcessor/
-├── .env                        # API keys, config vars
-├── docker-compose.yml         # Local LLM containers, scraper workers
-├── requirements.txt           # Python packages
-├── README.md                  # Setup + architecture docs
-├── /src
-│   ├── main.py                # Entrypoint to coordinate workflow
-│   ├── config.py              # Loads env and app config
-│   ├── search/
-│   │   └── google_search.py   # Fetches top N URLs for a stock ticker
-│   ├── scrape/
-│   │   ├── async_scraper.py   # Asynchronous web scraping logic
-│   │   └── article_cleaner.py # Strips boilerplate, ads, etc.
-│   ├── summarize/
-│   │   └── summarizer.py      # LLM wrapper to summarize content
-│   ├── utils/
-│   │   └── logger.py          # Custom logger
-│   └── models/
-│       └── data_schema.py     # Pydantic data models
-└── /tests                     # Unit tests for each module
-```
-
-## Workflow
-
-1. **Google Search** – Grab top links based on date & ticker keyword
-2. **Scraping** – Asynchronously scrape article content 
-3. **Cleaning** – Remove page noise, ads, HTML artifacts
-4. **Summarization** – Use local LLM to produce headline + summary
-5. **Structuring** – Convert results into structured objects
-
-## Tech Stack
-
-- Python 3.11+
-- FastAPI (optional endpoints)
-- Docker (LLM containers, scraper isolation)
-- Asyncio + aiohttp
-- Pydantic
-- Local LLMs like DeepSeek V1
-- Google Custom Search API
-
-## Use Cases
-
-- Stock chart timeline annotation
-- Investor sentiment analysis
-- Breaking news alerts on price events
-- Offline research tool for analysts
-
-## Docker
-
-Build and run with Docker:
-
-```bash
-docker build -t dataprocessor .
-docker run -p 8000:8000 -e GOOGLE_SEARCH_API_KEY=your_key -e GOOGLE_SEARCH_ENGINE_ID=your_id dataprocessor
-```
-
-## Output Format
-
-The article data is saved in JSON format with the following structure:
-
-```json
-[
-  {
-    "url": "https://example.com/article1",
-    "title": "Example Article Title",
-    "source": "example.com",
-    "publish_date": "2025-04-01T00:00:00",
-    "authors": ["Author Name"],
-    "content_snippet": "First 200 characters of the article content...",
-    "keywords": ["keyword1", "keyword2"],
-    "images": ["https://example.com/image1.jpg"],
-    "ticker": "AAPL",
-    "extracted_at": "2025-04-13T14:25:40.123456"
-  },
-  ...
-]
-```
+- **Service Issues**: Check service status
+  ```powershell
+  .\metabundle-cli.ps1 status services
+  ```

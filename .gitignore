@@ -1,0 +1,38 @@
+# Ignore directories with their own repositories
+/projects/*
+# But don't ignore project management scripts
+!/projects/README.md
+!/projects/*.ps1
+!/projects/*.sh
+
+# Common environment files
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Dependency directories
+node_modules/
+venv/
+__pycache__/
+*.py[cod]
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Docker related
+.docker/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
