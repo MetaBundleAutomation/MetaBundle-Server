@@ -19,11 +19,12 @@ All application repositories are organized in the `./projects` directory as Git 
 | Scraper | Web scraping and data collection services | [./projects/Scraper](./projects/Scraper) | https://github.com/MetaBundleAutomation/Scraper-Setup |
 
 ### Infrastructure Services
-Shared infrastructure services are organized in the `./services` directory as Git submodules:
+Shared infrastructure services are organized in the `./services` directory:
 
-| Service | Description | Location | Repository URL |
-|---------|-------------|----------|---------------|
-| nginx | Web server and Cloudflare Tunnel configurations | [./services/nginx](./services/nginx) | https://github.com/MetaBundleAutomation/nginx-config |
+| Service | Description | Location | 
+|---------|-------------|----------|
+| celery | Background task processing (worker and beat) using Redis as the broker | [./services/celery](./services/celery) |
+| nginx | Web server and Cloudflare Tunnel configurations | [./services/nginx](./services/nginx) |
 
 ## Getting Started
 
@@ -166,6 +167,24 @@ from tasks import add
 result = add.delay(2, 3)
 print(result.get())  # Should print 5
 ```
+
+## Services
+
+The `services/` directory contains core infrastructure components required by the MetaBundle Server. These are **not** submodules or standalone repositories—they are part of this main repository and provide supporting services for the overall system.
+
+### Directory Structure (Services)
+
+```
+services/
+├── celery/        # Celery worker & beat for background task processing
+│   └── shared-tasks/  # Shared directory for Celery task files
+├── nginx/         # Nginx reverse proxy configuration
+└── ...            # (Other core service folders)
+```
+
+- **celery/**: Contains the Celery worker/beat code, Dockerfile, and shared-tasks mount for distributed task processing.
+- **nginx/**: Contains configuration for the Nginx reverse proxy.
+- Other folders may be added for additional infrastructure services.
 
 ## Scraper Architecture
 
