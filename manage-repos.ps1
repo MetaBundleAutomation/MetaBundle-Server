@@ -39,7 +39,7 @@ $projectRepos = @(
     @{
         Name = "Scraper"
         Url = "https://github.com/MetaBundleAutomation/Scraper-Setup"
-        Branch = "main"
+        Branch = "master"
         Type = "project"
     }
 )
