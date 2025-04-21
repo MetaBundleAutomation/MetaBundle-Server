@@ -260,11 +260,11 @@ function Check-Status {
                 $connection = Test-NetConnection -ComputerName localhost -Port $port -InformationLevel Quiet -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
                 
                 if ($connection) {
-                    Write-Host "  - Port $port: " -NoNewline -ForegroundColor $colors.Info
+                    Write-Host "  - Port ${port}: " -NoNewline -ForegroundColor $colors.Info
                     Write-Host "IN USE" -ForegroundColor $colors.Error
                     $usedPorts += $port
                 } else {
-                    Write-Host "  - Port $port: " -NoNewline -ForegroundColor $colors.Info
+                    Write-Host "  - Port ${port}: " -NoNewline -ForegroundColor $colors.Info
                     Write-Host "Available" -ForegroundColor $colors.Success
                 }
             }
