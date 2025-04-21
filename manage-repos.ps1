@@ -1,7 +1,7 @@
 # MetaBundle Repository Management Script
 param(
     [Parameter(Mandatory=$false)]
-    [ValidateSet("clone", "update", "status", "list")]
+    [ValidateSet("add", "update", "init", "status", "list", "remove")]
     [string]$Action = "status",
     
     [Parameter(Mandatory=$false)]
@@ -79,103 +79,219 @@ function Get-RepoDirectory {
     }
 }
 
-# Function to clone a repository
-function Clone-Repository {
+# Function to get submodule path relative to root
+function Get-SubmodulePath {
     param(
         [Parameter(Mandatory=$true)]
         [hashtable]$Repository
     )
     
+    if ($Repository.Type -eq "project") {
+        return "projects/$($Repository.Name)"
+    } else {
+        return "services/$($Repository.Name)"
+    }
+}
+
+# Function to add a repository as a submodule
+function Add-Submodule {
+    param(
+        [Parameter(Mandatory=$true)]
+        [hashtable]$Repository
+    )
+    
+    $submodulePath = Get-SubmodulePath -Repository $Repository
     $repoPath = Get-RepoDirectory -Repository $Repository
     
     if (Test-Path $repoPath) {
-        Write-Host "Repository $($Repository.Name) already exists at $repoPath" -ForegroundColor Yellow
-        return
+        # Check if it's already a submodule
+        $gitModules = Get-Content -Path ".gitmodules" -ErrorAction SilentlyContinue
+        if ($gitModules -match $submodulePath) {
+            Write-Host "Submodule $($Repository.Name) already exists at $submodulePath" -ForegroundColor Yellow
+            return
+        } else {
+            Write-Host "Directory $($Repository.Name) exists but is not a submodule." -ForegroundColor Yellow
+            $decision = Read-Host "Do you want to replace it with a submodule? (y/N)"
+            if ($decision -ne "y" -and $decision -ne "Y") {
+                Write-Host "Operation cancelled." -ForegroundColor Yellow
+                return
+            }
+            Remove-Item -Path $repoPath -Recurse -Force
+        }
     }
     
-    Write-Host "Cloning $($Repository.Name) from $($Repository.Url)..." -ForegroundColor Cyan
-    git clone --branch $Repository.Branch $Repository.Url $repoPath
+    Write-Host "Adding submodule $($Repository.Name) from $($Repository.Url)..." -ForegroundColor Cyan
+    git submodule add -f -b $Repository.Branch $Repository.Url $submodulePath
     
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "Failed to clone $($Repository.Name)" -ForegroundColor Red
+        Write-Host "Failed to add submodule $($Repository.Name)" -ForegroundColor Red
         return $false
     }
     
-    Write-Host "Successfully cloned $($Repository.Name) to $repoPath" -ForegroundColor Green
+    Write-Host "Successfully added submodule $($Repository.Name) to $submodulePath" -ForegroundColor Green
     
     # Create REPOSITORY.md if it doesn't exist
     $repoMdPath = Join-Path $repoPath "REPOSITORY.md"
     if (-not (Test-Path $repoMdPath)) {
         Copy-Item -Path (Join-Path $root "REPOSITORY.md.template") -Destination $repoMdPath
         Write-Host "Created REPOSITORY.md template in $($Repository.Name)" -ForegroundColor Green
+        
+        # Commit the change within the submodule
+        Push-Location $repoPath
+        try {
+            git add REPOSITORY.md
+            git commit -m "Add REPOSITORY.md template"
+            git push origin $Repository.Branch
+        } catch {
+            Write-Host "Could not commit REPOSITORY.md to the submodule." -ForegroundColor Yellow
+        } finally {
+            Pop-Location
+        }
     }
     
     return $true
 }
 
-# Function to update a repository
-function Update-Repository {
+# Function to update a submodule
+function Update-Submodule {
     param(
         [Parameter(Mandatory=$true)]
         [hashtable]$Repository
     )
     
+    $submodulePath = Get-SubmodulePath -Repository $Repository
     $repoPath = Get-RepoDirectory -Repository $Repository
     
     if (-not (Test-Path $repoPath)) {
-        Write-Host "Repository $($Repository.Name) does not exist. Clone it first." -ForegroundColor Yellow
+        Write-Host "Submodule $($Repository.Name) does not exist. Add it first." -ForegroundColor Yellow
         return $false
     }
     
-    Write-Host "Updating $($Repository.Name)..." -ForegroundColor Cyan
-    Push-Location $repoPath
+    # Check if it's a submodule
+    $gitModules = Get-Content -Path ".gitmodules" -ErrorAction SilentlyContinue
+    if (-not ($gitModules -match $submodulePath)) {
+        Write-Host "Directory $($Repository.Name) exists but is not a submodule." -ForegroundColor Yellow
+        return $false
+    }
     
-    try {
-        git pull
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host "Failed to update $($Repository.Name)" -ForegroundColor Red
-            return $false
-        }
-        
-        Write-Host "Successfully updated $($Repository.Name)" -ForegroundColor Green
-        return $true
+    Write-Host "Updating submodule $($Repository.Name)..." -ForegroundColor Cyan
+    
+    # Update the submodule
+    git submodule update --remote --merge $submodulePath
+    
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Failed to update submodule $($Repository.Name)" -ForegroundColor Red
+        return $false
     }
-    finally {
-        Pop-Location
-    }
+    
+    Write-Host "Successfully updated submodule $($Repository.Name)" -ForegroundColor Green
+    return $true
 }
 
-# Function to check repository status
-function Get-RepositoryStatus {
+# Function to initialize submodules
+function Initialize-Submodules {
+    Write-Host "Initializing all submodules..." -ForegroundColor Cyan
+    
+    # Check if .gitmodules exists
+    if (-not (Test-Path ".gitmodules")) {
+        Write-Host "No submodules defined yet. Use 'add' command to add submodules." -ForegroundColor Yellow
+        return
+    }
+    
+    # Initialize and update all submodules
+    git submodule init
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Failed to initialize submodules" -ForegroundColor Red
+        return
+    }
+    
+    git submodule update
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Failed to update submodules" -ForegroundColor Red
+        return
+    }
+    
+    Write-Host "All submodules initialized successfully." -ForegroundColor Green
+}
+
+# Function to remove a submodule
+function Remove-Submodule {
     param(
         [Parameter(Mandatory=$true)]
         [hashtable]$Repository
     )
     
+    $submodulePath = Get-SubmodulePath -Repository $Repository
+    
+    Write-Host "Removing submodule $($Repository.Name)..." -ForegroundColor Cyan
+    
+    # De-initialize the submodule
+    git submodule deinit -f $submodulePath
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Failed to deinitialize submodule $($Repository.Name)" -ForegroundColor Red
+        return $false
+    }
+    
+    # Remove from .git/modules
+    git rm -f $submodulePath
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Failed to remove submodule $($Repository.Name) from git" -ForegroundColor Red
+        return $false
+    }
+    
+    # Remove from .git/modules
+    $gitModulesPath = Join-Path (Join-Path $root ".git") "modules"
+    $submoduleGitPath = Join-Path $gitModulesPath $submodulePath
+    if (Test-Path $submoduleGitPath) {
+        Remove-Item -Path $submoduleGitPath -Recurse -Force
+    }
+    
+    Write-Host "Successfully removed submodule $($Repository.Name)" -ForegroundColor Green
+    return $true
+}
+
+# Function to check submodule status
+function Get-SubmoduleStatus {
+    param(
+        [Parameter(Mandatory=$true)]
+        [hashtable]$Repository
+    )
+    
+    $submodulePath = Get-SubmodulePath -Repository $Repository
     $repoPath = Get-RepoDirectory -Repository $Repository
     
     if (-not (Test-Path $repoPath)) {
-        Write-Host "$($Repository.Name) ($($Repository.Type)): Not cloned" -ForegroundColor Red
+        Write-Host "$($Repository.Name) ($($Repository.Type)): Not added" -ForegroundColor Red
         return
     }
     
-    Push-Location $repoPath
+    # Check if it's a submodule
+    $gitModules = Get-Content -Path ".gitmodules" -ErrorAction SilentlyContinue
+    if (-not ($gitModules -match $submodulePath)) {
+        Write-Host "$($Repository.Name) ($($Repository.Type)): Directory exists but is not a submodule" -ForegroundColor Yellow
+        return
+    }
     
-    try {
-        $status = git status --porcelain
-        $branch = git rev-parse --abbrev-ref HEAD
-        
-        if ($status) {
-            Write-Host "$($Repository.Name) ($($Repository.Type)): Modified (branch: $branch)" -ForegroundColor Yellow
-        } else {
-            Write-Host "$($Repository.Name) ($($Repository.Type)): Clean (branch: $branch)" -ForegroundColor Green
+    # Get submodule status
+    $status = git submodule status $submodulePath
+    
+    if ($status -match "^\+") {
+        Write-Host "$($Repository.Name) ($($Repository.Type)): Needs update (commit changed)" -ForegroundColor Yellow
+    } elseif ($status -match "^-") {
+        Write-Host "$($Repository.Name) ($($Repository.Type)): Not initialized" -ForegroundColor Red
+    } elseif ($status -match "^U") {
+        Write-Host "$($Repository.Name) ($($Repository.Type)): Merge conflicts" -ForegroundColor Red
+    } else {
+        # Get current branch
+        Push-Location $repoPath
+        try {
+            $branch = git rev-parse --abbrev-ref HEAD
+            Write-Host "$($Repository.Name) ($($Repository.Type)): Up to date (branch: $branch)" -ForegroundColor Green
+        } catch {
+            Write-Host "$($Repository.Name) ($($Repository.Type)): Error checking branch" -ForegroundColor Red
+        } finally {
+            Pop-Location
         }
-    }
-    catch {
-        Write-Host "$($Repository.Name) ($($Repository.Type)): Error checking status" -ForegroundColor Red
-    }
-    finally {
-        Pop-Location
     }
 }
 
@@ -183,13 +299,20 @@ function Get-RepositoryStatus {
 function List-Repositories {
     Write-Host "Available repositories:" -ForegroundColor Cyan
     
+    # Check if .gitmodules exists
+    $hasGitModules = Test-Path ".gitmodules"
+    
     Write-Host "`nProjects:" -ForegroundColor Magenta
     foreach ($repo in $projectRepos) {
         $repoPath = Get-RepoDirectory -Repository $repo
+        $submodulePath = Get-SubmodulePath -Repository $repo
         $exists = Test-Path $repoPath
+        $isSubmodule = $hasGitModules -and ((Get-Content -Path ".gitmodules" -ErrorAction SilentlyContinue) -match $submodulePath)
         
-        if ($exists) {
-            Write-Host "  [X] $($repo.Name)" -ForegroundColor Green
+        if ($exists -and $isSubmodule) {
+            Write-Host "  [X] $($repo.Name) (submodule)" -ForegroundColor Green
+        } elseif ($exists) {
+            Write-Host "  [?] $($repo.Name) (directory exists but not a submodule)" -ForegroundColor Yellow
         } else {
             Write-Host "  [ ] $($repo.Name)" -ForegroundColor Gray
         }
@@ -198,10 +321,14 @@ function List-Repositories {
     Write-Host "`nServices:" -ForegroundColor Magenta
     foreach ($repo in $serviceRepos) {
         $repoPath = Get-RepoDirectory -Repository $repo
+        $submodulePath = Get-SubmodulePath -Repository $repo
         $exists = Test-Path $repoPath
+        $isSubmodule = $hasGitModules -and ((Get-Content -Path ".gitmodules" -ErrorAction SilentlyContinue) -match $submodulePath)
         
-        if ($exists) {
-            Write-Host "  [X] $($repo.Name)" -ForegroundColor Green
+        if ($exists -and $isSubmodule) {
+            Write-Host "  [X] $($repo.Name) (submodule)" -ForegroundColor Green
+        } elseif ($exists) {
+            Write-Host "  [?] $($repo.Name) (directory exists but not a submodule)" -ForegroundColor Yellow
         } else {
             Write-Host "  [ ] $($repo.Name)" -ForegroundColor Gray
         }
@@ -210,15 +337,15 @@ function List-Repositories {
 
 # Main script logic
 switch ($Action) {
-    "clone" {
+    "add" {
         if ($All) {
             foreach ($repo in $repos) {
-                Clone-Repository -Repository $repo
+                Add-Submodule -Repository $repo
             }
         } elseif ($RepoName) {
             $repository = $repos | Where-Object { $_.Name -eq $RepoName }
             if ($repository) {
-                Clone-Repository -Repository $repository
+                Add-Submodule -Repository $repository
             } else {
                 Write-Host "Repository $RepoName not found in configuration" -ForegroundColor Red
             }
@@ -230,12 +357,12 @@ switch ($Action) {
     "update" {
         if ($All) {
             foreach ($repo in $repos) {
-                Update-Repository -Repository $repo
+                Update-Submodule -Repository $repo
             }
         } elseif ($RepoName) {
             $repository = $repos | Where-Object { $_.Name -eq $RepoName }
             if ($repository) {
-                Update-Repository -Repository $repository
+                Update-Submodule -Repository $repository
             } else {
                 Write-Host "Repository $RepoName not found in configuration" -ForegroundColor Red
             }
@@ -244,15 +371,19 @@ switch ($Action) {
         }
     }
     
+    "init" {
+        Initialize-Submodules
+    }
+    
     "status" {
         if ($All -or (-not $RepoName)) {
             foreach ($repo in $repos) {
-                Get-RepositoryStatus -Repository $repo
+                Get-SubmoduleStatus -Repository $repo
             }
         } elseif ($RepoName) {
             $repository = $repos | Where-Object { $_.Name -eq $RepoName }
             if ($repository) {
-                Get-RepositoryStatus -Repository $repository
+                Get-SubmoduleStatus -Repository $repository
             } else {
                 Write-Host "Repository $RepoName not found in configuration" -ForegroundColor Red
             }
@@ -261,6 +392,19 @@ switch ($Action) {
     
     "list" {
         List-Repositories
+    }
+    
+    "remove" {
+        if ($RepoName) {
+            $repository = $repos | Where-Object { $_.Name -eq $RepoName }
+            if ($repository) {
+                Remove-Submodule -Repository $repository
+            } else {
+                Write-Host "Repository $RepoName not found in configuration" -ForegroundColor Red
+            }
+        } else {
+            Write-Host "Please specify a repository name to remove" -ForegroundColor Yellow
+        }
     }
 }
 
